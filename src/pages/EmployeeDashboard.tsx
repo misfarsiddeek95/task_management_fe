@@ -49,49 +49,6 @@ export const ChevronDownIcon = ({
   );
 };
 
-export const SortBySelect = ({
-  icon,
-  buttonColor = "primary",
-  onClick,
-}: {
-  icon: React.ReactNode;
-  buttonColor?:
-    | "primary"
-    | "secondary"
-    | "success"
-    | "warning"
-    | "danger"
-    | "default";
-
-  onClick?: () => void;
-}) => {
-  return (
-    <div className="flex items-center gap-2">
-      <Select
-        label="Sort by"
-        labelPlacement="outside-left"
-        placeholder="Select option"
-        className="min-w-[200px]"
-        size="sm"
-      >
-        <SelectItem key="due_date">Due Date</SelectItem>
-        <SelectItem key="priority">Priority</SelectItem>
-      </Select>
-
-      <Button
-        isIconOnly
-        variant="light"
-        color={buttonColor}
-        size="sm"
-        aria-label="Next page"
-        onPress={onClick}
-      >
-        {icon}
-      </Button>
-    </div>
-  );
-};
-
 export const SortArrow = ({
   isDesc,
   colorClass = "text-current",
@@ -154,6 +111,7 @@ const EmployeeDashboard = () => {
 
   const [sortBtnType, setSortBtnType] = useState<boolean>(false);
   const [tasks, setTasks] = useState<TaskTypes[]>([]);
+  const [sortBy, setSortBy] = useState<"due_date" | "priority">("due_date");
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -175,6 +133,53 @@ const EmployeeDashboard = () => {
     fetchTasks();
   }, [user?.token]);
 
+  const markCompleted = async ({
+    taskId,
+    isCompleted,
+  }: {
+    taskId: number;
+    isCompleted: boolean;
+  }) => {
+    try {
+      const data = { id: taskId, isCompleted };
+
+      const response = await axios.patch(
+        `${import.meta.env.VITE_API_URL}task/complete-task`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+          },
+        }
+      );
+
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, isCompleted } : task
+        )
+      );
+    } catch (error) {
+      console.error("Error update task:", error);
+    }
+  };
+
+  // Sort tasks based on selected criteria
+  const sortedTasks = [...tasks]
+    .sort((a, b) => {
+      if (sortBy === "due_date") {
+        return sortBtnType
+          ? new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+          : new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      } else if (sortBy === "priority") {
+        const priorityOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+        return sortBtnType
+          ? priorityOrder[b.taskPriority] - priorityOrder[a.taskPriority]
+          : priorityOrder[a.taskPriority] - priorityOrder[b.taskPriority];
+      }
+      return 0;
+    })
+    .sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted)); // Keep uncompleted tasks first
+
   return (
     <Layout username={user?.name}>
       <div className="p-4 bg-white rounded-lg shadow">
@@ -192,13 +197,36 @@ const EmployeeDashboard = () => {
         <Spacer y={4} />
         <div className="flex flex-col gap-4">
           <div className="flex justify-between gap-3 items-end">
-            <h2>2 active tasks, 0 completed</h2>
-            <SortBySelect
-              icon={
+            <h2>
+              {tasks.filter((task) => !task.isCompleted).length} active tasks,{" "}
+              {tasks.filter((task) => task.isCompleted).length} completed
+            </h2>
+            <div className="flex items-center gap-2">
+              <Select
+                label="Sort by"
+                labelPlacement="outside-left"
+                placeholder="Select option"
+                className="min-w-[200px]"
+                size="sm"
+                selectedKeys={[sortBy]}
+                onSelectionChange={(selected) =>
+                  setSortBy(selected.values().next().value)
+                }
+              >
+                <SelectItem key="due_date">Due Date</SelectItem>
+                <SelectItem key="priority">Priority</SelectItem>
+              </Select>
+
+              <Button
+                isIconOnly
+                variant="light"
+                color="primary"
+                size="sm"
+                onPress={() => setSortBtnType((prev) => !prev)}
+              >
                 <SortArrow isDesc={sortBtnType} colorClass="text-default" />
-              }
-              onClick={() => setSortBtnType((pre) => (pre ? false : true))}
-            />
+              </Button>
+            </div>
           </div>
         </div>
         <Spacer y={4} />
@@ -210,11 +238,15 @@ const EmployeeDashboard = () => {
             <TableColumn>STATUS</TableColumn>
           </TableHeader>
           <TableBody>
-            {tasks.map((task, index) => (
-              <TableRow key={index}>
+            {sortedTasks.map((task) => (
+              <TableRow key={task.id}>
                 <TableCell>
                   <div className="flex flex-col">
-                    <p className="text-bold text-sm capitalize">
+                    <p
+                      className={`text-bold text-sm capitalize ${
+                        task.isCompleted ? "line-through" : ""
+                      }`}
+                    >
                       {task.taskName}
                     </p>
                     <p className="text-bold text-sm capitalize text-default-400">
@@ -261,7 +293,18 @@ const EmployeeDashboard = () => {
                 </TableCell>
 
                 <TableCell>
-                  <Checkbox color="success">Mark as completed</Checkbox>
+                  <Checkbox
+                    color="success"
+                    isSelected={task.isCompleted}
+                    onValueChange={() =>
+                      markCompleted({
+                        taskId: task.id,
+                        isCompleted: !task.isCompleted,
+                      })
+                    }
+                  >
+                    Mark as completed
+                  </Checkbox>
                 </TableCell>
               </TableRow>
             ))}

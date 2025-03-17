@@ -7,8 +7,9 @@ import {
 import { Login } from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
-import { AuthProvider } from "./utility/AuthContext";
+
 import { ProtectedRoute } from "./utility/utility";
+import { AuthProvider } from "./utility/AuthContext";
 
 export default function App() {
   const user = JSON.parse(localStorage.getItem("user") || "null"); // logged in detail
