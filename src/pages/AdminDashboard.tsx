@@ -1,9 +1,13 @@
 import React, { SVGProps, useEffect, useState } from "react";
 import { Layout } from "./Layout";
 import {
+  Avatar,
   Button,
   Card,
   CardBody,
+  CardFooter,
+  CardHeader,
+  Divider,
   Dropdown,
   DropdownItem,
   DropdownMenu,
@@ -15,6 +19,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Progress,
   Select,
   SelectItem,
   Tab,
@@ -25,6 +30,7 @@ import {
   TableHeader,
   TableRow,
   Tabs,
+  Textarea,
   useDisclosure,
 } from "@heroui/react";
 import axios from "axios";
@@ -46,17 +52,41 @@ interface UserDataTypes {
   userName: string;
   department: string;
   role: string;
+  completedTasks?: number;
+  notCompletedTasks?: number;
+  completedPercentage?: number;
+  totalTasks?: number;
+}
+
+interface TaskFormData {
+  taskName: string;
+  taskDesc: string;
+  priority: string;
+  dueDate: string;
 }
 
 const AdminDashboard = () => {
   const user = JSON.parse(localStorage.getItem("user") || "null"); // logged in detail
   const [selected, setSelected] = React.useState<string>("analytics");
+  const [taskUserId, setTaskUserId] = useState<number | null>(null);
 
-  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
-  const [empSubmitted, setEmpSubmitted] =
-    React.useState<EmployeeFormData | null>(null);
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure(); // for user modal
+  const {
+    isOpen: isOpenTask,
+    onOpen: onOpenTask,
+    onOpenChange: onOpenChangeTask,
+    onClose: onCloseTask,
+  } = useDisclosure(); // for task modal
 
-  const [empErrors, setEmpErrors] = React.useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = React.useState<EmployeeFormData | null>(
+    null
+  );
+
+  const [taskSubmitted, setTaskSubmitted] = React.useState<TaskFormData | null>(
+    null
+  );
+
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   const [users, setUsers] = useState<UserDataTypes[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserDataTypes | null>(null);
@@ -151,13 +181,13 @@ const AdminDashboard = () => {
       newErrors.department = "Please select a department";
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setEmpErrors(newErrors);
-      return;
-    }
-
     if (!data.role || (data.role as string).length < 4) {
       newErrors.role = "Role must be at least 4 characters";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
     }
 
     const dataWithRole = { ...data, id: selectedUser?.id }; // for update
@@ -186,6 +216,10 @@ const AdminDashboard = () => {
             userName: response.data.userName,
             department: response.data.department,
             role: response.data.role,
+            completedTasks: response.data.completedTasks,
+            notCompletedTasks: response.data.notCompletedTasks,
+            completedPercentage: response.data.completedPercentage,
+            totalTasks: response.data.totalTasks,
           },
         ]);
       } else {
@@ -207,13 +241,13 @@ const AdminDashboard = () => {
         );
       }
 
-      setEmpSubmitted(data as unknown as EmployeeFormData);
+      setSubmitted(data as unknown as EmployeeFormData);
 
       onClose(); // Close the modal after successful registration
       setIsEdit(false);
     } catch (error) {
       console.error("Error registering user:", error);
-      setEmpErrors({ general: "Failed to register user. Please try again." });
+      setErrors({ general: "Failed to register user. Please try again." });
     }
   };
 
@@ -257,6 +291,68 @@ const AdminDashboard = () => {
       prevUsers.filter((user) => user.id !== response?.data?.id)
     );
   };
+  // ------------------------ ^^^^^ USER RELATED ^^^^^ -------------
+
+  // ––––––––––––––––––––––– TASK RELATED ––––––––––––––––––––––––––
+
+  const assignTaskOpen = ({ userId }: { userId: number }) => {
+    onOpenTask();
+    setTaskUserId(userId);
+  };
+
+  const priority = ["HIGH", "MEDIUM", "LOW"];
+
+  // create user wise tasks
+  const onSubmitTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const data = Object.fromEntries(formData);
+
+    // Validation
+    const newErrors: Record<string, string> = {};
+
+    if (!data.taskName || (data.taskName as string).length < 2) {
+      newErrors.taskName = "Task name must be at least 2 characters";
+    }
+
+    if (!data.taskDesc || (data.taskDesc as string).length < 2) {
+      newErrors.taskDesc = "Task description must be at least 2 characters";
+    }
+
+    if (!data.priority) {
+      newErrors.priority = "Please select a priority";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    const dataWithRole = { ...data, userId: taskUserId }; // for update
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}task/create-task`,
+        dataWithRole,
+        {
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+          },
+        }
+      );
+
+      console.log("response", response.data);
+
+      setTaskSubmitted(data as unknown as TaskFormData);
+
+      onCloseTask();
+      setTaskUserId(null);
+    } catch (error) {
+      console.error("Error registering user:", error);
+      setErrors({ general: "Failed to register user. Please try again." });
+    }
+  };
+  // –––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
 
   return (
     <Layout username={user?.name}>
@@ -268,11 +364,68 @@ const AdminDashboard = () => {
         >
           <Tab key="analytics" title="Analytics">
             <Card>
+              <CardHeader>
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center mt-4">
+                  Task Completion Analytics
+                </h1>
+              </CardHeader>
               <CardBody>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-                enim ad minim veniam, quis nostrud exercitation ullamco laboris
-                nisi ut aliquip ex ea commodo consequat.
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {users.map((us, index) => (
+                    <Card
+                      key={index}
+                      className="max-w-[400px] p-4 bg-content1 rounded-md"
+                    >
+                      <CardHeader className="flex gap-3">
+                        <div className="flex gap-5">
+                          <Avatar
+                            isBordered
+                            radius="full"
+                            size="md"
+                            src="https://heroui.com/avatars/avatar-1.png"
+                          />
+                          <div className="flex flex-col gap-1 items-start justify-center">
+                            <h4 className="text-small font-semibold leading-none text-default-600">
+                              {us.firstName} {us.lastName}
+                            </h4>
+                            <h5 className="text-small tracking-tight text-default-400">
+                              {
+                                departments.find(
+                                  (dept) => dept.value === us.department
+                                )?.name
+                              }
+                            </h5>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <Divider />
+                      <CardBody>
+                        <Progress
+                          classNames={{
+                            base: "max-w-md",
+                            track: "drop-shadow-md border border-default",
+                            indicator:
+                              "bg-gradient-to-r from-pink-500 to-yellow-500",
+                            label:
+                              "tracking-wider font-medium text-default-600",
+                            value: "text-foreground/60",
+                          }}
+                          label="Total Completed Task"
+                          radius="sm"
+                          showValueLabel={true}
+                          size="sm"
+                          value={us.completedPercentage}
+                        />
+                      </CardBody>
+                      <Divider />
+                      <CardFooter>
+                        <h1>
+                          {us.completedTasks} of {us.totalTasks} tasks completed
+                        </h1>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
               </CardBody>
             </Card>
           </Tab>
@@ -343,7 +496,12 @@ const AdminDashboard = () => {
                                 >
                                   Edit
                                 </DropdownItem>
-                                <DropdownItem key="assign_task">
+                                <DropdownItem
+                                  key="assign_task"
+                                  onPress={() =>
+                                    assignTaskOpen({ userId: us.id })
+                                  }
+                                >
                                   Assign Task
                                 </DropdownItem>
                                 <DropdownItem
@@ -385,8 +543,8 @@ const AdminDashboard = () => {
             <>
               <Form
                 className="w-full justify-center items-center"
-                validationErrors={empErrors}
-                onReset={() => setEmpSubmitted(null)}
+                validationErrors={errors}
+                onReset={() => setSubmitted(null)}
                 onSubmit={onSubmit}
               >
                 <ModalHeader className="flex flex-col gap-1">
@@ -404,7 +562,7 @@ const AdminDashboard = () => {
                     isRequired
                     labelPlacement="outside"
                     minLength={2}
-                    errorMessage={empErrors?.firstName}
+                    errorMessage={errors?.firstName}
                     value={selectedUser?.firstName || ""}
                     onChange={(e) =>
                       setSelectedUser((prev) => ({
@@ -423,7 +581,7 @@ const AdminDashboard = () => {
                     isRequired
                     labelPlacement="outside"
                     minLength={2}
-                    errorMessage={empErrors?.lastName}
+                    errorMessage={errors?.lastName}
                     value={selectedUser?.lastName || ""}
                     onChange={(e) =>
                       setSelectedUser((prev) => ({
@@ -442,7 +600,7 @@ const AdminDashboard = () => {
                     isRequired
                     labelPlacement="outside"
                     minLength={4}
-                    errorMessage={empErrors?.username}
+                    errorMessage={errors?.username}
                     value={selectedUser?.userName || ""}
                     onChange={(e) =>
                       setSelectedUser((prev) => ({
@@ -462,7 +620,7 @@ const AdminDashboard = () => {
                       isRequired
                       labelPlacement="outside"
                       minLength={8}
-                      errorMessage={empErrors?.password}
+                      errorMessage={errors?.password}
                     />
                   )}
                   <Select
@@ -473,7 +631,7 @@ const AdminDashboard = () => {
                     fullWidth
                     isRequired
                     labelPlacement="outside"
-                    errorMessage={empErrors?.department}
+                    errorMessage={errors?.department}
                     defaultSelectedKeys={
                       selectedUser?.department ? [selectedUser.department] : []
                     }
@@ -492,9 +650,7 @@ const AdminDashboard = () => {
                     }}
                   >
                     {departments.map((dep) => (
-                      <SelectItem key={dep.value} value={dep.value}>
-                        {dep.name}
-                      </SelectItem>
+                      <SelectItem key={dep.value}>{dep.name}</SelectItem>
                     ))}
                   </Select>
                   <Select
@@ -505,7 +661,7 @@ const AdminDashboard = () => {
                     fullWidth
                     isRequired
                     labelPlacement="outside"
-                    errorMessage={empErrors?.role}
+                    errorMessage={errors?.role}
                     defaultSelectedKeys={
                       selectedUser?.role ? [selectedUser.role] : []
                     }
@@ -524,9 +680,7 @@ const AdminDashboard = () => {
                     }}
                   >
                     {employType.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
+                      <SelectItem key={type}>{type}</SelectItem>
                     ))}
                   </Select>
                 </ModalBody>
@@ -550,8 +704,95 @@ const AdminDashboard = () => {
           )}
         </ModalContent>
       </Modal>
-
       {/* -------------- */}
+
+      {/* Task Modal */}
+      <Modal
+        isOpen={isOpenTask}
+        placement="top-center"
+        onOpenChange={onOpenChangeTask}
+        size="2xl"
+        isDismissable={false}
+        isKeyboardDismissDisabled={true}
+        hideCloseButton
+      >
+        <ModalContent>
+          {(onCloseTask) => (
+            <>
+              <Form
+                className="w-full justify-center items-center"
+                validationErrors={errors}
+                onReset={() => setTaskSubmitted(null)}
+                onSubmit={onSubmitTask}
+              >
+                <ModalHeader className="flex flex-col gap-1">
+                  Add Task
+                </ModalHeader>
+                <ModalBody className="gap-6 px-8">
+                  {/* Task Name Input */}
+                  <Input
+                    label="Task Name"
+                    name="taskName"
+                    placeholder="Enter task name"
+                    isRequired
+                    variant="bordered"
+                    fullWidth
+                    className="w-full lg:w-96"
+                  />
+
+                  {/* Task Description Textarea */}
+                  <Textarea
+                    label="Task Description"
+                    name="taskDesc"
+                    placeholder="Enter task description"
+                    minRows={3}
+                    variant="bordered"
+                    isRequired
+                  />
+
+                  {/* Priority Select */}
+                  <Select
+                    label="Priority"
+                    name="priority"
+                    placeholder="Select priority"
+                    isRequired
+                    variant="bordered"
+                  >
+                    {priority.map((val) => (
+                      <SelectItem key={val}>{val}</SelectItem>
+                    ))}
+                  </Select>
+
+                  {/* Date Input */}
+                  <Input
+                    label="Due Date"
+                    name="dueDate"
+                    type="date"
+                    isRequired
+                    variant="bordered"
+                  />
+                </ModalBody>
+                <ModalFooter>
+                  <Button
+                    color="danger"
+                    variant="flat"
+                    onPress={() => {
+                      onCloseTask();
+                      setTaskUserId(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button color="primary" type="submit">
+                    Add Task
+                  </Button>
+                </ModalFooter>
+              </Form>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      {/* ---------- */}
     </Layout>
   );
 };
