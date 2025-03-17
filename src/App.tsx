@@ -15,7 +15,7 @@ export default function App() {
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route
             path="/admin/dashboard"
             element={
@@ -34,7 +34,7 @@ export default function App() {
           />
 
           {/* Fallback route for unauthorized access */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>
     </Router>

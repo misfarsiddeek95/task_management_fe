@@ -19,7 +19,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const userRole = user?.role;
 
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />; // Redirect to login if not authenticated
+    return <Navigate to="/login" replace />; // Redirect to login if not authenticated
   }
 
   if (!allowedRoles.includes(userRole)) {
