@@ -243,6 +243,21 @@ const AdminDashboard = () => {
     onOpen(); // Open the modal
   };
 
+  const handleDelete = async ({ userId }: { userId: number }) => {
+    const response = await axios.delete(
+      `${import.meta.env.VITE_API_URL}user/delete-user/${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${user?.token}`,
+        },
+      }
+    );
+
+    setUsers((prevUsers) =>
+      prevUsers.filter((user) => user.id !== response?.data?.id)
+    );
+  };
+
   return (
     <Layout username={user?.name}>
       <div className="flex w-full flex-col">
@@ -299,13 +314,13 @@ const AdminDashboard = () => {
                     <TableColumn>ACTIONS</TableColumn>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user, index) => (
+                    {users.map((us, index) => (
                       <TableRow key={index}>
-                        <TableCell>{user.empId}</TableCell>
-                        <TableCell>{user.firstName}</TableCell>
-                        <TableCell>{user.lastName}</TableCell>
-                        <TableCell>{user.userName}</TableCell>
-                        <TableCell>{user.department}</TableCell>
+                        <TableCell>{us.empId}</TableCell>
+                        <TableCell>{us.firstName}</TableCell>
+                        <TableCell>{us.lastName}</TableCell>
+                        <TableCell>{us.userName}</TableCell>
+                        <TableCell>{us.department}</TableCell>
                         <TableCell>
                           <div className="relative flex tems-center gap-2">
                             <Dropdown>
@@ -314,11 +329,15 @@ const AdminDashboard = () => {
                                   <VerticalDotsIcon className="text-default-300" />
                                 </Button>
                               </DropdownTrigger>
-                              <DropdownMenu>
+                              <DropdownMenu
+                                disabledKeys={
+                                  us.id === user?.user_id ? ["delete"] : []
+                                }
+                              >
                                 <DropdownItem
                                   key="edit"
                                   onPress={() => {
-                                    handleEdit(user);
+                                    handleEdit(us);
                                     setIsEdit(true);
                                   }}
                                 >
@@ -327,7 +346,16 @@ const AdminDashboard = () => {
                                 <DropdownItem key="assign_task">
                                   Assign Task
                                 </DropdownItem>
-                                <DropdownItem key="delete">Delete</DropdownItem>
+                                <DropdownItem
+                                  key="delete"
+                                  onPress={() =>
+                                    handleDelete({ userId: us.id })
+                                  }
+                                  className="text-danger"
+                                  color="danger"
+                                >
+                                  Delete
+                                </DropdownItem>
                               </DropdownMenu>
                             </Dropdown>
                           </div>

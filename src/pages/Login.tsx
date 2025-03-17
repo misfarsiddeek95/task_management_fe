@@ -24,13 +24,14 @@ export function Login() {
       );
 
       // Extract data from the response
-      const { access_token, role, name } = response.data;
+      const { access_token, role, name, user_id } = response.data;
 
       // Create a user object
       const user = {
         token: access_token, // Store the JWT token
         role, // Store the user's role
         name: name, // Store the user's name
+        user_id: user_id,
       };
 
       // Save the user object in localStorage as a JSON string
