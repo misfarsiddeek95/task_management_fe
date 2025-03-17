@@ -11,11 +11,28 @@ import { AuthProvider } from "./utility/AuthContext";
 import { ProtectedRoute } from "./utility/utility";
 
 export default function App() {
+  const user = JSON.parse(localStorage.getItem("user") || "null"); // logged in detail
   return (
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={
+              user ? (
+                <Navigate
+                  to={
+                    user?.role === "ADMIN"
+                      ? "/admin/dashboard"
+                      : "/employee/dashboard"
+                  }
+                  replace
+                />
+              ) : (
+                <Login />
+              )
+            }
+          />
           <Route
             path="/admin/dashboard"
             element={

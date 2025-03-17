@@ -1,47 +1,79 @@
 import axios from "axios";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+
+interface UserData {
+  token: string;
+  role: string;
+  name: string;
+}
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (userData: { token: string; role: string; name: string }) => void;
+  user: UserData | null;
+  login: (userData: UserData) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem("user")
-  );
+  const [user, setUser] = useState<UserData | null>(() => {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
 
-  const login = (userData: { token: string; role: string; name: string }) => {
+  const isAuthenticated = !!user;
+
+  const login = (userData: UserData) => {
     localStorage.setItem("user", JSON.stringify(userData));
-    setIsAuthenticated(true);
+    setUser(userData);
   };
 
   const logout = async () => {
     try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}auth/logout`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${
-              JSON.parse(localStorage.getItem("user") || "null")?.token
-            }`,
-          },
-        }
-      );
-      localStorage.removeItem("user");
-      setIsAuthenticated(false);
-      window.location.href = "/";
+      const token = user?.token;
+      if (token) {
+        await axios.post(
+          `${import.meta.env.VITE_API_URL}auth/logout`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
     } catch (error) {
       console.error("Logout failed", error);
+    } finally {
+      localStorage.removeItem("user");
+      setUser(null);
+      window.location.href = "/login"; // Redirect to login page
     }
   };
 
+  // Auto logout when token expires
+  useEffect(() => {
+    const checkTokenExpiration = () => {
+      if (!user?.token) return;
+
+      try {
+        const { exp } = JSON.parse(atob(user.token.split(".")[1])); // Decode JWT payload
+        const expirationTime = exp * 1000; // Convert to milliseconds
+
+        if (Date.now() >= expirationTime) {
+          logout();
+        }
+      } catch (error) {
+        console.error("Invalid token format:", error);
+        logout(); // If decoding fails, logout user
+      }
+    };
+
+    checkTokenExpiration();
+    const interval = setInterval(checkTokenExpiration, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
