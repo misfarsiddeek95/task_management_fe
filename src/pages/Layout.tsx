@@ -3,6 +3,7 @@ import { Button } from "@heroui/button";
 import { User } from "@heroui/user";
 import { ReactNode } from "react";
 import { useAuth } from "../utility/AuthContext";
+import NotificationNavItem from "./component/NotificationNavItem";
 
 interface LayoutProps {
   username: string;
@@ -36,6 +37,7 @@ export function Layout({ username, children }: LayoutProps) {
         </NavbarBrand>
 
         <NavbarContent justify="end">
+          <NotificationNavItem />
           <NavbarItem>
             <User name={username} />
           </NavbarItem>
