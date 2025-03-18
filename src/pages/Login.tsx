@@ -4,6 +4,7 @@ import { Form } from "@heroui/form";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios, { AxiosError } from "axios";
+import { Card, CardBody } from "@heroui/react";
 
 export function Login() {
   const [username, setUsername] = useState("");
@@ -92,6 +93,22 @@ export function Login() {
           <Button type="submit" color="primary" fullWidth>
             Sign In
           </Button>
+          <Card fullWidth>
+            <CardBody className="flex flex-col items-center text-center">
+              <p style={{ fontWeight: 700 }}>USERNAME & PASSWORD</p> <hr />
+              <hr />
+              <p>
+                <span style={{ fontWeight: 700 }}>ADMIN</span> - misfar /
+                pass@123
+              </p>
+              <hr />
+              <p>
+                <span style={{ fontWeight: 700 }}>EMPLOYEE</span> - david /
+                pass@123
+              </p>
+              <p></p>
+            </CardBody>
+          </Card>
         </Form>
       </div>
     </div>
