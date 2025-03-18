@@ -143,7 +143,7 @@ const EmployeeDashboard = () => {
     try {
       const data = { id: taskId, isCompleted };
 
-      const response = await axios.patch(
+      await axios.patch(
         `${import.meta.env.VITE_API_URL}task/complete-task`,
         data,
         {
